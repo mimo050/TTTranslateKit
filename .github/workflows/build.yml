@@ -13,16 +13,15 @@ jobs:
           brew install ldid make git dpkg || true
           git clone https://github.com/theos/theos.git $HOME/theos
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-
-          # استخدم iOS SDK المثبّت مع Xcode على جهاز الماك السحابي
+          # استخدم iOS SDK الجاهز في بيئة GitHub
           SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
           mkdir -p "$HOME/theos/sdks"
-          # اربط مسار الـ SDK ليتوافق مع شكل الأسماء التي يتوقعها Theos
           ln -s "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")" || true
           ln -s "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk" || true
 
       - name: Build tweak
-        working-directory: TTTranslateKit/inject
+        # ملفاتك في جذر الريبو، لذلك نبني من هنا
+        working-directory: .
         env:
           THEOS: ${{ env.THEOS }}
         run: |
@@ -31,10 +30,10 @@ jobs:
       - name: Extract dylib
         run: |
           mkdir -p out
-          DEB=$(ls TTTranslateKit/inject/packages/*.deb | head -n1)
+          DEB=$(ls packages/*.deb | head -n1)
           dpkg-deb -x "$DEB" extract
           cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
-          cp TTTranslateKit/inject/TTTranslateKit.plist out/
+          cp TTTranslateKit.plist out/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
