@@ -1,0 +1,39 @@
+name: build-tttranslatekit
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          brew install ldid make wget git dpkg
+          git clone https://github.com/theos/theos.git $HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          mkdir -p $HOME/theos/sdks
+          wget -O $HOME/theos/sdks/iPhoneOS15.5.sdk.zip https://github.com/xybp888/iOS-SDKs/releases/download/15.5/iPhoneOS15.5.sdk.zip
+          unzip -q $HOME/theos/sdks/iPhoneOS15.5.sdk.zip -d $HOME/theos/sdks
+
+      - name: Build tweak
+        working-directory: TTTranslateKit/inject
+        env:
+          THEOS: ${{ env.THEOS }}
+        run: |
+          make clean package FINALPACKAGE=1
+
+      - name: Extract dylib
+        run: |
+          mkdir -p out
+          DEB=$(ls TTTranslateKit/inject/packages/*.deb | head -n1)
+          dpkg-deb -x "$DEB" extract
+          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
+          cp TTTranslateKit/inject/TTTranslateKit.plist out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTTranslateKit-dylib
+          path: out/*
