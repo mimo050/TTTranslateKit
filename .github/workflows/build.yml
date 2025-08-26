@@ -73,19 +73,19 @@ jobs:
         working-directory: ${{ steps.find-project.outputs.dir }}
         run: make clean package FINALPACKAGE=1
 
-      - name: Extract dylib
+      - name: Extract dylib and plist
         working-directory: ${{ steps.find-project.outputs.dir }}
         run: |
           mkdir -p out
           DEB=$(ls packages/*.deb | head -n1)
           dpkg-deb -x "$DEB" extract
-          cp extract/Library/MobileSubstrate/DynamicLibraries/*.dylib out/
-          cp *.plist out/ || true
+          cp extract/Library/MobileSubstrate/DynamicLibraries/*.dylib out/TTTranslateKit.dylib
+          cp TTTranslateKit.plist out/TTTranslateKit.plist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-artifact
+          name: TTTranslateKit-artifacts
           path: ${{ steps.find-project.outputs.dir }}/out/*
 
       - name: Create release
