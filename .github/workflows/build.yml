@@ -1,4 +1,4 @@
-name: build-tttranslatekit
+name: build
 
 on:
   push:
@@ -9,15 +9,27 @@ jobs:
   build:
     runs-on: macos-13
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install deps & Theos
+      - name: Cache Theos
+        id: cache-theos
+        uses: actions/cache@v4
+        with:
+          path: $HOME/theos
+          key: theos-${{ runner.os }}-${{ hashFiles('.github/workflows/build.yml') }}
+
+      - name: Install Theos
+        if: steps.cache-theos.outputs.cache-hit != 'true'
+        run: git clone --recursive https://github.com/theos/theos.git $HOME/theos
+
+      - name: Setup environment
         run: |
-          brew install ldid make git dpkg || true
-          git clone https://github.com/theos/theos.git $HOME/theos
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p "$HOME/theos/sdks"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
@@ -34,8 +46,6 @@ jobs:
 
       - name: Build tweak
         working-directory: ${{ steps.find-project.outputs.dir }}
-        env:
-          THEOS: ${{ env.THEOS }}
         run: make clean package FINALPACKAGE=1
 
       - name: Extract dylib
@@ -50,5 +60,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-dylib
+          name: TTTranslateKit-artifact
           path: ${{ steps.find-project.outputs.dir }}/out/*
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.find-project.outputs.dir }}/out/*
