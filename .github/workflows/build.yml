@@ -34,6 +34,9 @@ jobs:
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
+      - name: Install ldid
+        run: brew install ldid
+
       - name: Install Theos submodules (safety)
         run: |
           cd $HOME/theos
