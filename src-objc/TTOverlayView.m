@@ -52,12 +52,22 @@
 
 - (void)showOverlay
 {
+    if (!self.hidden) return;
+    self.alpha = 0.0;
     self.hidden = NO;
+    [UIView animateWithDuration:0.25 animations:^{
+        self.alpha = 1.0;
+    }];
 }
 
 - (void)hideOverlay
 {
-    self.hidden = YES;
+    if (self.hidden) return;
+    [UIView animateWithDuration:0.25 animations:^{
+        self.alpha = 0.0;
+    } completion:^(BOOL finished) {
+        self.hidden = YES;
+    }];
 }
 
 @end
