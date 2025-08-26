@@ -1,6 +1,7 @@
 import json
 import urllib.request
 from urllib.parse import quote
+from unittest.mock import MagicMock, patch
 
 API_URL = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl={target}&dt=t&q={text}"
 
@@ -12,5 +13,11 @@ def translate(text: str, target: str) -> str:
     return data[0][0][0]
 
 def test_translate_hello_to_arabic():
-    translated = translate("hello", "ar")
-    assert "مرح" in translated
+    fake_payload = [[["مرحبا", "hello"]]]
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps(fake_payload).encode("utf-8")
+    mock_response.__enter__.return_value = mock_response
+    with patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
+        translated = translate("hello", "ar")
+        assert translated == "مرحبا"
+        mock_urlopen.assert_called_once()
