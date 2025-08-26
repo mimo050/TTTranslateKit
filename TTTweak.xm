@@ -1,18 +1,6 @@
 #import <UIKit/UIKit.h>
-
-// Forward declarations for internal classes
-@interface TTOverlayView : UIView
-- (void)updateTranslatedText:(NSString *)text;
-- (void)showOverlay;
-- (void)hideOverlay;
-@end
-
-@interface TTTranslate : NSObject
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion;
-@end
+#import "src-objc/TTOverlayView.h"
+#import "src-objc/TTTranslate.h"
 
 // Determine at runtime if we are running inside the target app.
 static BOOL TTIsTargetApp(void) {

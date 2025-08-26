@@ -1,20 +1,4 @@
-#import <Foundation/Foundation.h>
-
-/// A simple translation utility that leverages a configurable translation
-/// endpoint (defaulting to the Google Translate API) to translate text from
-/// any source language to a specified target language.
-@interface TTTranslate : NSObject
-
-/// Translates the provided text to the given target language.
-/// @param text The original text to translate.
-/// @param targetLanguage A language code such as "en" or "ar".
-/// @param completion Completion block returning translated text or an error.
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion;
-
-@end
+#import "TTTranslate.h"
 
 @implementation TTTranslate
 
