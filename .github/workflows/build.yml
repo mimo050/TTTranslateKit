@@ -1,6 +1,10 @@
 name: build-tttranslatekit
+
 on:
+  push:
+  pull_request:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: macos-13
@@ -13,30 +17,38 @@ jobs:
           brew install ldid make git dpkg || true
           git clone https://github.com/theos/theos.git $HOME/theos
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          # استخدم iOS SDK الجاهز في بيئة GitHub
           SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
           mkdir -p "$HOME/theos/sdks"
-          ln -s "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")" || true
-          ln -s "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk" || true
+          ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
+          ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
+
+      - name: Locate project directory
+        id: find-project
+        run: |
+          if [[ -f Makefile ]]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          else
+            DIR=$(find . -name Makefile -maxdepth 2 -not -path './.git/*' -exec dirname {} \; | head -n1)
+            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build tweak
-        # ملفاتك في جذر الريبو، لذلك نبني من هنا
-        working-directory: .
+        working-directory: ${{ steps.find-project.outputs.dir }}
         env:
           THEOS: ${{ env.THEOS }}
-        run: |
-          make clean package FINALPACKAGE=1
+        run: make clean package FINALPACKAGE=1
 
       - name: Extract dylib
+        working-directory: ${{ steps.find-project.outputs.dir }}
         run: |
           mkdir -p out
           DEB=$(ls packages/*.deb | head -n1)
           dpkg-deb -x "$DEB" extract
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
-          cp TTTranslateKit.plist out/
+          cp extract/Library/MobileSubstrate/DynamicLibraries/*.dylib out/
+          cp *.plist out/ || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
-          path: out/*
+          path: ${{ steps.find-project.outputs.dir }}/out/*
