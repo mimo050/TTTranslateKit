@@ -5,7 +5,7 @@ INSTALL_TARGET_PROCESSES = TikTok
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = TTTranslateKit
-TTTranslateKit_FILES = TTTranslate.m TTOverlayView.m TTTweak.xm
+TTTranslateKit_FILES = src-objc/TTTranslate.m src-objc/TTOverlayView.m TTTweak.xm
 TTTranslateKit_CFLAGS = -fobjc-arc
 TTTranslateKit_FRAMEWORKS = UIKit Foundation
 TTTranslateKit_LIBRARIES = c++
