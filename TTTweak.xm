@@ -65,6 +65,13 @@ static TTOverlayView *TTGetOverlay(void) {
                     [overlay hideOverlay];
                 });
             });
+        } else if (error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [overlay updateTranslatedText:error.localizedDescription];
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [overlay hideOverlay];
+                });
+            });
         }
     }];
 }
