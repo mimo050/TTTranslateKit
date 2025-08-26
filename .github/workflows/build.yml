@@ -1,6 +1,7 @@
+---
 name: build-tttranslatekit
 
-on:
+'on':
   push:
   pull_request:
   workflow_dispatch:
@@ -14,7 +15,8 @@ jobs:
 
       - name: Install deps & Theos
         run: |
-          brew install ldid make git dpkg || true
+          set -e
+          brew install --quiet ldid make git dpkg
           git clone https://github.com/theos/theos.git $HOME/theos
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
@@ -22,13 +24,19 @@ jobs:
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
+      - name: Verify ldid
+        run: which ldid
+
       - name: Locate project directory
         id: find-project
         run: |
           if [[ -f Makefile ]]; then
             echo "dir=." >> "$GITHUB_OUTPUT"
           else
-            DIR=$(find . -name Makefile -maxdepth 2 -not -path './.git/*' -exec dirname {} \; | head -n1)
+            DIR=$(
+              find . -name Makefile -maxdepth 2 \
+                -not -path './.git/*' -exec dirname {} \; | head -n1
+            )
             echo "dir=$DIR" >> "$GITHUB_OUTPUT"
           fi
 
