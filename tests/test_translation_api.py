@@ -32,12 +32,8 @@ def test_translate_hello_to_arabic():
 
 
 def test_translate_empty_text_raises_error():
-    mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps([[['', '']]]).encode("utf-8")
-    mock_response.__enter__.return_value = mock_response
-    with patch("urllib.request.urlopen", return_value=mock_response):
-        with pytest.raises(ValueError):
-            translate("", "ar")
+    with pytest.raises(ValueError):
+        translate("", "ar")
 
 
 def test_translate_url_error_propagates():
