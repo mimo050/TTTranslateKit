@@ -43,15 +43,24 @@ static NSURLSession *TTTranslateSession(void) {
         return;
     }
 
-    NSCharacterSet *allowed = [NSCharacterSet URLQueryAllowedCharacterSet];
+    NSMutableCharacterSet *allowed = [[NSCharacterSet URLQueryAllowedCharacterSet] mutableCopy];
+    [allowed removeCharactersInString:@"+&=?/"];
     NSString *escapedText = [text stringByAddingPercentEncodingWithAllowedCharacters:allowed];
+
     NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"TTTranslationEndpoint"];
     if (baseURL.length == 0) {
         baseURL = @"https://translate.googleapis.com/translate_a/single";
     }
-    NSString *urlString = [NSString stringWithFormat:@"%@?client=gtx&sl=auto&tl=%@&dt=t&q=%@",
-                           baseURL, targetLanguage, escapedText];
-    NSURL *url = [NSURL URLWithString:urlString];
+
+    NSURLComponents *components = [NSURLComponents componentsWithString:baseURL];
+    components.queryItems = @[ [NSURLQueryItem queryItemWithName:@"client" value:@"gtx"],
+                               [NSURLQueryItem queryItemWithName:@"sl" value:@"auto"],
+                               [NSURLQueryItem queryItemWithName:@"tl" value:targetLanguage],
+                               [NSURLQueryItem queryItemWithName:@"dt" value:@"t"] ];
+    NSString *query = components.percentEncodedQuery ?: @"";
+    query = [query stringByAppendingFormat:@"&q=%@", escapedText];
+    components.percentEncodedQuery = query;
+    NSURL *url = components.URL;
     NSURLRequest *request = [NSURLRequest requestWithURL:url];
 
     NSURLSessionDataTask *task = [TTTranslateSession() dataTaskWithRequest:request
