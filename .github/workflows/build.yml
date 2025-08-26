@@ -34,6 +34,11 @@ jobs:
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
+      - name: Install Theos submodules (safety)
+        run: |
+          cd $HOME/theos
+          git submodule update --init --recursive
+
       - name: Locate project directory
         id: find-project
         run: |
@@ -44,8 +49,22 @@ jobs:
             echo "dir=$DIR" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Setup Python for tests
+        if: ${{ hashFiles('tests/**/*.py') != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test deps
+        if: ${{ hashFiles('tests/**/*.py') != '' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
       - name: Run unit tests
-        run: pytest -q
+        if: ${{ hashFiles('tests/**/*.py') != '' }}
+        run: |
+          pytest -q
 
       - name: Build tweak
         working-directory: ${{ steps.find-project.outputs.dir }}
