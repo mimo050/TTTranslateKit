@@ -9,6 +9,5 @@ TTTranslateKit_FILES = src-objc/TTTranslate.m src-objc/TTOverlayView.m TTTweak.x
 TTTranslateKit_CFLAGS = -fobjc-arc
 TTTranslateKit_FRAMEWORKS = UIKit Foundation CFNetwork
 TTTranslateKit_LDFLAGS += -ObjC
-TTTranslateKit_LIBRARIES = c++
 
 include $(THEOS_MAKE_PATH)/tweak.mk
