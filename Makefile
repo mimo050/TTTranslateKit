@@ -1,3 +1,13 @@
+ARCHS = arm64
+TARGET = iphone:clang:15.5:13.0
+INSTALL_TARGET_PROCESSES = TikTok
+
 include $(THEOS)/makefiles/common.mk
+
 TWEAK_NAME = TTTranslateKit
+TTTranslateKit_FILES = TTTranslate.m TTOverlayView.m TTTweak.xm
+TTTranslateKit_CFLAGS = -fobjc-arc
+TTTranslateKit_FRAMEWORKS = UIKit Foundation
+TTTranslateKit_LIBRARIES = c++
+
 include $(THEOS_MAKE_PATH)/tweak.mk
