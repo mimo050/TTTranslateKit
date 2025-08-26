@@ -1,7 +1,8 @@
 #import <Foundation/Foundation.h>
 
-/// A simple translation utility that leverages the Google Translate API to
-/// translate text from any source language to a specified target language.
+/// A simple translation utility that leverages a configurable translation
+/// endpoint (defaulting to the Google Translate API) to translate text from
+/// any source language to a specified target language.
 @interface TTTranslate : NSObject
 
 /// Translates the provided text to the given target language.
@@ -16,6 +17,18 @@
 @end
 
 @implementation TTTranslate
+
+static NSURLSession *TTTranslateSession(void) {
+    static NSURLSession *session;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
+        config.timeoutIntervalForRequest = 15.0;
+        config.timeoutIntervalForResource = 30.0;
+        session = [NSURLSession sessionWithConfiguration:config];
+    });
+    return session;
+}
 
 + (void)translateText:(NSString *)text
            toLanguage:(NSString *)targetLanguage
@@ -32,17 +45,53 @@
 
     NSCharacterSet *allowed = [NSCharacterSet URLQueryAllowedCharacterSet];
     NSString *escapedText = [text stringByAddingPercentEncodingWithAllowedCharacters:allowed];
-    NSString *urlString = [NSString stringWithFormat:@"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=%@&dt=t&q=%@",
-                           targetLanguage, escapedText];
+    NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"TTTranslationEndpoint"];
+    if (baseURL.length == 0) {
+        baseURL = @"https://translate.googleapis.com/translate_a/single";
+    }
+    NSString *urlString = [NSString stringWithFormat:@"%@?client=gtx&sl=auto&tl=%@&dt=t&q=%@",
+                           baseURL, targetLanguage, escapedText];
     NSURL *url = [NSURL URLWithString:urlString];
     NSURLRequest *request = [NSURLRequest requestWithURL:url];
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request
-                                                                 completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+    NSURLSessionDataTask *task = [TTTranslateSession() dataTaskWithRequest:request
+                                                         completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
-            if (completion) completion(nil, error);
+            NSString *message;
+            switch (error.code) {
+                case NSURLErrorNotConnectedToInternet:
+                    message = @"Network unavailable";
+                    break;
+                case NSURLErrorTimedOut:
+                    message = @"The request timed out";
+                    break;
+                default:
+                    message = error.localizedDescription ?: @"Unknown network error";
+                    break;
+            }
+            NSError *friendly = [NSError errorWithDomain:@"TTTranslateErrorDomain"
+                                                    code:error.code
+                                                userInfo:@{NSLocalizedDescriptionKey: message}];
+            if (completion) completion(nil, friendly);
             return;
         }
+
+        NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+        if (![httpResponse isKindOfClass:[NSHTTPURLResponse class]] || httpResponse.statusCode < 200 || httpResponse.statusCode >= 300) {
+            NSInteger status = httpResponse.statusCode;
+            NSString *message;
+            if (status == 429) {
+                message = @"Rate limit exceeded";
+            } else {
+                message = [NSHTTPURLResponse localizedStringForStatusCode:status];
+            }
+            NSError *statusError = [NSError errorWithDomain:@"TTTranslateErrorDomain"
+                                                      code:status
+                                                  userInfo:@{NSLocalizedDescriptionKey: message}];
+            if (completion) completion(nil, statusError);
+            return;
+        }
+
         if (data.length == 0) {
             NSError *noDataError = [NSError errorWithDomain:@"TTTranslateErrorDomain"
                                                        code:1
