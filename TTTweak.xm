@@ -65,6 +65,10 @@ static TTOverlayView *TTGetOverlay(void) {
                     [overlay hideOverlay];
                 });
             });
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [overlay hideOverlay];
+            });
         }
     }];
 }
