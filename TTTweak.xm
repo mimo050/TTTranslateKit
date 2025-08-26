@@ -50,7 +50,14 @@ static TTOverlayView *TTGetOverlay(void) {
 
     TTOverlayView *overlay = TTGetOverlay();
     [overlay showOverlay];
-    [TTTranslate translateText:text toLanguage:@"en" completion:^(NSString * _Nullable translatedText, NSError * _Nullable error) {
+    // Retrieve the target language from user defaults. If no preference is set,
+    // fall back to the app's preferred localization (or English).
+    NSString *targetLang = [[NSUserDefaults standardUserDefaults] stringForKey:@"TTTargetLanguage"];
+    if (targetLang.length == 0) {
+        targetLang = [[NSBundle mainBundle] preferredLocalizations].firstObject ?: @"en";
+    }
+
+    [TTTranslate translateText:text toLanguage:targetLang completion:^(NSString * _Nullable translatedText, NSError * _Nullable error) {
         if (translatedText) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [overlay updateTranslatedText:translatedText];
