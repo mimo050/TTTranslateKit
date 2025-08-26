@@ -44,6 +44,9 @@ jobs:
             echo "dir=$DIR" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Run unit tests
+        run: pytest -q
+
       - name: Build tweak
         working-directory: ${{ steps.find-project.outputs.dir }}
         run: make clean package FINALPACKAGE=1
