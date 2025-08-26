@@ -1,5 +1,5 @@
 ARCHS = arm64
-TARGET = iphone:clang:15.5:13.0
+TARGET = iphone:clang:latest:13.0
 INSTALL_TARGET_PROCESSES = TikTok
 
 include $(THEOS)/makefiles/common.mk
