@@ -3,11 +3,11 @@ name: build
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-13
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +23,7 @@ jobs:
 
       - name: Install Theos (if missing)
         if: steps.cache-theos.outputs.cache-hit != 'true'
-        run: |
-          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        run: git clone --recursive https://github.com/theos/theos.git $HOME/theos
 
       - name: Setup env & iOS SDK link
         shell: bash
@@ -34,46 +33,48 @@ jobs:
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p "$HOME/theos/sdks"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
+          ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
-      - name: Install packaging tools
-        shell: bash
+      - name: Install packaging tools (no dpkg -i)
         run: |
           brew update
-          brew install dpkg ldid || true
+          brew install ldid dpkg || true
           ldid -V
           dpkg-deb --version
 
       - name: Build tweak
         env:
           THEOS: ${{ env.THEOS }}
-        run: |
-          make clean package FINALPACKAGE=1
+        run: make clean package FINALPACKAGE=1
 
-      # Upload the raw .dylib as its own artifact from packages/
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
-          path: ./packages/**/*.dylib
+          path: |
+            packages/**/*.dylib
+            **/*.dylib
+          if-no-files-found: warn
 
-      # Extract .deb to fetch .dylib and .plist consistently
-      - name: Extract files for artifact
+      - name: Extract files from .deb (if exists)
+        if: ${{ always() }}
         shell: bash
         run: |
           set -e
           mkdir -p out
-          DEB=$(ls packages/*.deb | head -n1)
-          echo "Found: $DEB"
-          dpkg-deb -x "$DEB" out/extract
-          find out/extract -name "*.dylib" -print -exec cp {} out/ \;
-          find out/extract -name "*.plist" -print -exec cp {} out/ \;
-          cp "$DEB" out/
+          DEB=$(ls packages/*.deb 2>/dev/null | head -n1 || true)
+          if [[ -n "$DEB" ]]; then
+            dpkg-deb -x "$DEB" out/extract
+            find out/extract -name "*.dylib" -print -exec cp {} out/ \;
+            find out/extract -name "*.plist" -print -exec cp {} out/ \;
+          fi
 
       - name: Upload artifact bundle
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-artifacts
           path: |
-            out/*.deb
+            packages/*.deb
             out/*.dylib
             out/*.plist
+          if-no-files-found: warn
