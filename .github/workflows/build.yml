@@ -43,91 +43,30 @@ jobs:
           ldid -v || true
           dpkg-deb --version || true
 
-      - name: Build tweak
+      - name: Build tweak (release)
         env:
           THEOS: ${{ env.THEOS }}
-        run: |
-          make clean package FINALPACKAGE=1
+        run: make clean package FINALPACKAGE=1
 
-      - name: Collect dylib & plist into out/
-        if: always()
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p out
-          # Try common locations for dylib
-          DYLIB_PATH=""
-          for p in \
-            "packages/TTTranslateKit.dylib" \
-            ".theos/obj/arm64/TTTranslateKit.dylib" \
-            ".theos/obj/TTTranslateKit.dylib" \
-            ".theos/obj/**/*.dylib" \
-            "out/**/*.dylib" \
-          ; do
-            match=$(ls -1d $p 2>/dev/null | head -n1 || true)
-            if [[ -n "$match" ]]; then
-              DYLIB_PATH="$match"
-              break
-            fi
-          done
-          if [[ -z "$DYLIB_PATH" ]]; then
-            echo "No dylib found"; ls -R . || true; exit 0
-          fi
-          cp -f "$DYLIB_PATH" out/TTTranslateKit.dylib || true
-
-          # Try to locate a matching plist
-          PLIST_PATH=""
-          for p in \
-            "TTTranslateKit.plist" \
-            "packages/**/*.plist" \
-            ".theos/**/*.plist" \
-            "out/**/*.plist" \
-          ; do
-            match=$(ls -1d $p 2>/dev/null | head -n1 || true)
-            if [[ -n "$match" ]]; then
-              PLIST_PATH="$match"
-              break
-            fi
-          done
-          if [[ -n "$PLIST_PATH" ]]; then
-            cp -f "$PLIST_PATH" out/TTTranslateKit.plist || true
-          else
-            echo "No plist found — continuing with dylib only."
-          fi
-
-          echo "Contents of out/:"; ls -la out
-
-      - name: Create bundle zip (dylib + plist)
-        if: always()
-        shell: bash
-        run: |
-          cd out
-          zip -r TTTranslateKit_bundle.zip TTTranslateKit.dylib TTTranslateKit.plist 2>/dev/null || \
-          zip -r TTTranslateKit_bundle.zip TTTranslateKit.dylib
-
-      - name: Upload bundle artifact
-        if: always()
+      - name: Upload dylib (release)
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-bundle
-          path: out/TTTranslateKit_bundle.zip
-          if-no-files-found: error
+          name: TTTranslateKit-dylib
+          path: packages/**/*.dylib
 
-      # (Optional) Also upload raw files separately
-      - name: Upload raw dylib/plist
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: TTTranslateKit-raw
-          path: |
-            out/TTTranslateKit.dylib
-            out/TTTranslateKit.plist
-          if-no-files-found: warn
-
-      - name: Upload deb artifact (optional)
-        if: always()
+      - name: Upload deb (release)
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-deb
           path: packages/*.deb
-          if-no-files-found: warn
+
+      - name: Build tweak (debug with alert)
+        env:
+          THEOS: ${{ env.THEOS }}
+        run: make clean package FINALPACKAGE=1 DEBUG=1
+
+      - name: Upload dylib (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTTranslateKit-dylib-debug
+          path: packages/**/*.dylib
