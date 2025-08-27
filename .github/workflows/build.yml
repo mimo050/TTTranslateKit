@@ -1,7 +1,6 @@
 name: build
 
 on:
-  workflow_dispatch:
   push:
   pull_request:
 
@@ -34,9 +33,10 @@ jobs:
           echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p "$HOME/theos/sdks"
-          ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
+          ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
 
       - name: Install packaging tools
+        shell: bash
         run: |
           brew update
           brew install dpkg ldid || true
@@ -49,34 +49,28 @@ jobs:
         run: |
           make clean package FINALPACKAGE=1
 
+      # Upload the raw .dylib as its own artifact from packages/
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
           path: packages/**/*.dylib
 
+      # Extract .deb to fetch .dylib and .plist consistently
       - name: Extract files for artifact
+        shell: bash
         run: |
           set -e
           mkdir -p out
- codex/add-debian-control-file-for-packaging
           DEB=$(ls packages/*.deb | head -n1)
-          dpkg-deb -x "$DEB" extract
-          # عدّل المسار إذا اختلف اسم ملفك
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/
-          cp control out/
-
-          DEB=$(ls -1 **/packages/*.deb | head -n1)
           echo "Found: $DEB"
           dpkg-deb -x "$DEB" out/extract
           dpkg-deb -e "$DEB" out/control
           find out/extract -name "*.dylib" -print -exec cp {} out/ \;
           find out/extract -name "*.plist" -print -exec cp {} out/ \;
- main
           cp "$DEB" out/
 
-      - name: Upload artifact
+      - name: Upload artifact bundle
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-artifacts
@@ -84,4 +78,3 @@ jobs:
             out/*.deb
             out/*.dylib
             out/*.plist
-
