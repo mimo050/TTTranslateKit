@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
-          path: packages/**/*.dylib
+          path: ./packages/**/*.dylib
 
       # Extract .deb to fetch .dylib and .plist consistently
       - name: Extract files for artifact
