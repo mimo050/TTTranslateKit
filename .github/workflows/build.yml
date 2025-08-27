@@ -45,7 +45,7 @@ jobs:
         run: |
           make clean package FINALPACKAGE=1
 
-      - name: Extract dylib and plist
+      - name: Extract files for artifact
         run: |
           mkdir -p out
           DEB=$(ls packages/*.deb | head -n1)
@@ -53,6 +53,8 @@ jobs:
           # عدّل المسار إذا اختلف اسم ملفك
           cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
           cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/
+          cp control out/
+          cp "$DEB" out/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

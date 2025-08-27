@@ -1,0 +1,9 @@
+Package: com.example.tttranslatekit
+Name: TTTranslateKit
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Adds in-app translation feature for TikTok
+Maintainer: Example Maintainer <maintainer@example.com>
+Author: Example Maintainer <maintainer@example.com>
+Section: Tweaks
+Depends: mobilesubstrate
