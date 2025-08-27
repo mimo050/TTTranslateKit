@@ -36,8 +36,12 @@ jobs:
           mkdir -p "$HOME/theos/sdks"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
-      - name: Install ldid
-        run: brew install ldid
+      - name: Install packaging tools
+        run: |
+          brew update
+          brew install dpkg ldid || true
+          ldid -V
+          dpkg-deb --version
 
       - name: Build tweak
         env:
@@ -45,18 +49,24 @@ jobs:
         run: |
           make clean package FINALPACKAGE=1
 
-      - name: Extract dylib and plist
+      - name: Extract files for artifact
         run: |
+          set -e
           mkdir -p out
-          DEB=$(ls packages/*.deb | head -n1)
-          dpkg-deb -x "$DEB" extract
-          # عدّل المسار إذا اختلف اسم ملفك
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/
+          DEB=$(ls -1 **/packages/*.deb | head -n1)
+          echo "Found: $DEB"
+          dpkg-deb -x "$DEB" out/extract
+          dpkg-deb -e "$DEB" out/control
+          find out/extract -name "*.dylib" -print -exec cp {} out/ \;
+          find out/extract -name "*.plist" -print -exec cp {} out/ \;
+          cp "$DEB" out/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-artifact
-          path: out/*
+          name: TTTranslateKit-artifacts
+          path: |
+            out/*.deb
+            out/*.dylib
+            out/*.plist
 
