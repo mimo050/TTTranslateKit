@@ -36,6 +36,9 @@ jobs:
           mkdir -p "$HOME/theos/sdks"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
+      - name: Install ldid
+        run: brew install ldid
+
       - name: Build tweak
         env:
           THEOS: ${{ env.THEOS }}
