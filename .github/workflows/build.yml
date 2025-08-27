@@ -53,12 +53,21 @@ jobs:
         run: |
           set -e
           mkdir -p out
+ codex/add-debian-control-file-for-packaging
+          DEB=$(ls packages/*.deb | head -n1)
+          dpkg-deb -x "$DEB" extract
+          # عدّل المسار إذا اختلف اسم ملفك
+          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
+          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/
+          cp control out/
+
           DEB=$(ls -1 **/packages/*.deb | head -n1)
           echo "Found: $DEB"
           dpkg-deb -x "$DEB" out/extract
           dpkg-deb -e "$DEB" out/control
           find out/extract -name "*.dylib" -print -exec cp {} out/ \;
           find out/extract -name "*.plist" -print -exec cp {} out/ \;
+ main
           cp "$DEB" out/
 
       - name: Upload artifact
