@@ -1,54 +1,79 @@
-name: build-tttranslatekit
+name: build
 
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-13
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Install deps & Theos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache Theos
+        id: cache-theos
+        uses: actions/cache@v4
+        with:
+          path: $HOME/theos
+          key: theos-${{ runner.os }}-${{ hashFiles('.github/workflows/build.yml') }}
+
+      - name: Install Theos (if missing)
+        if: steps.cache-theos.outputs.cache-hit != 'true'
         run: |
-          brew install ldid make git dpkg || true
-          git clone https://github.com/theos/theos.git $HOME/theos
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+
+      - name: Setup env & iOS SDK link
+        shell: bash
+        run: |
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p "$HOME/theos/sdks"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
-          ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
-      - name: Locate project directory
-        id: find-project
+      - name: Install packaging tools
+        shell: bash
         run: |
-          if [[ -f Makefile ]]; then
-            echo "dir=." >> "$GITHUB_OUTPUT"
-          else
-            DIR=$(find . -name Makefile -maxdepth 2 -not -path './.git/*' -exec dirname {} \; | head -n1)
-            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
-          fi
+          brew update
+          brew install dpkg ldid || true
+          ldid -V
+          dpkg-deb --version
 
       - name: Build tweak
-        working-directory: ${{ steps.find-project.outputs.dir }}
         env:
           THEOS: ${{ env.THEOS }}
-        run: make clean package FINALPACKAGE=1
-
-      - name: Extract dylib
-        working-directory: ${{ steps.find-project.outputs.dir }}
         run: |
-          mkdir -p out
-          DEB=$(ls packages/*.deb | head -n1)
-          dpkg-deb -x "$DEB" extract
-          cp extract/Library/MobileSubstrate/DynamicLibraries/*.dylib out/
-          cp *.plist out/ || true
+          make clean package FINALPACKAGE=1
 
-      - name: Upload artifact
+      # Upload the raw .dylib as its own artifact from packages/
+      - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
-          path: ${{ steps.find-project.outputs.dir }}/out/*
+          path: ./packages/**/*.dylib
+
+      # Extract .deb to fetch .dylib and .plist consistently
+      - name: Extract files for artifact
+        shell: bash
+        run: |
+          set -e
+          mkdir -p out
+          DEB=$(ls packages/*.deb | head -n1)
+          echo "Found: $DEB"
+          dpkg-deb -x "$DEB" out/extract
+          find out/extract -name "*.dylib" -print -exec cp {} out/ \;
+          find out/extract -name "*.plist" -print -exec cp {} out/ \;
+          cp "$DEB" out/
+
+      - name: Upload artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTTranslateKit-artifacts
+          path: |
+            out/*.deb
+            out/*.dylib
+            out/*.plist

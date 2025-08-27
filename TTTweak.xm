@@ -1,18 +1,29 @@
 #import <UIKit/UIKit.h>
+#import "src-objc/TTOverlayView.h"
+#import "src-objc/TTTranslate.h"
 
-// Forward declarations for internal classes
-@interface TTOverlayView : UIView
-- (void)updateTranslatedText:(NSString *)text;
-- (void)showOverlay;
-- (void)hideOverlay;
-@end
-
-@interface TTTranslate : NSObject
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion;
-@end
+static UIWindow *TTT_FindActiveWindow(void) {
+    UIWindow *win = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive &&
+                [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *ws = (UIWindowScene *)scene;
+                for (UIWindow *w in ws.windows) {
+                    if (w.isKeyWindow || w.windowScene) { win = w; break; }
+                }
+                if (win) break;
+            }
+        }
+    }
+    if (!win) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        win = UIApplication.sharedApplication.keyWindow;
+#pragma clang diagnostic pop
+    }
+    return win;
+}
 
 // Determine at runtime if we are running inside the target app.
 static BOOL TTIsTargetApp(void) {
@@ -33,7 +44,7 @@ static TTOverlayView *TTGetOverlay(void) {
         CGRect frame = [UIScreen mainScreen].bounds;
         overlay = [[TTOverlayView alloc] initWithFrame:frame];
         overlay.hidden = YES;
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        UIWindow *window = TTT_FindActiveWindow();
         if (window) {
             [window addSubview:overlay];
         }
@@ -50,20 +61,18 @@ static TTOverlayView *TTGetOverlay(void) {
 
     TTOverlayView *overlay = TTGetOverlay();
     [overlay showOverlay];
-    // Retrieve the target language from user defaults. If no preference is set,
-    // fall back to the app's preferred localization (or English).
-    NSString *targetLang = [[NSUserDefaults standardUserDefaults] stringForKey:@"TTTargetLanguage"];
-    if (targetLang.length == 0) {
-        targetLang = [[NSBundle mainBundle] preferredLocalizations].firstObject ?: @"en";
-    }
-
-    [TTTranslate translateText:text toLanguage:targetLang completion:^(NSString * _Nullable translatedText, NSError * _Nullable error) {
+    TTTranslate *translator = [TTTranslate new];
+    [translator translateText:text completion:^(NSString * _Nullable translatedText, NSError * _Nullable error) {
         if (translatedText) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [overlay updateTranslatedText:translatedText];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     [overlay hideOverlay];
                 });
+            });
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [overlay hideOverlay];
             });
         }
     }];

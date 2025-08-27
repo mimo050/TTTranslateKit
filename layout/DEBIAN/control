@@ -1,0 +1,6 @@
+Package: com.example.tttranslatekit
+Version: 1.0.0
+Architecture: iphoneos-arm
+Depends: mobilesubstrate
+Maintainer: Example Maintainer <maintainer@example.com>
+Description: Adds translation capabilities to the TT app.

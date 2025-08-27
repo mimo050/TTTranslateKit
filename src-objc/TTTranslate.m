@@ -1,20 +1,4 @@
-#import <Foundation/Foundation.h>
-
-/// A simple translation utility that leverages a configurable translation
-/// endpoint (defaulting to the Google Translate API) to translate text from
-/// any source language to a specified target language.
-@interface TTTranslate : NSObject
-
-/// Translates the provided text to the given target language.
-/// @param text The original text to translate.
-/// @param targetLanguage A language code such as "en" or "ar".
-/// @param completion Completion block returning translated text or an error.
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion;
-
-@end
+#import "TTTranslate.h"
 
 @implementation TTTranslate
 
@@ -30,17 +14,23 @@ static NSURLSession *TTTranslateSession(void) {
     return session;
 }
 
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion
+- (void)translateText:(NSString * _Nonnull)text
+           completion:(TTTranslateCompletion)completion
 {
-    if (text.length == 0 || targetLanguage.length == 0) {
-        NSError *paramError = [NSError errorWithDomain:@"TTTranslateErrorDomain"
-                                                  code:0
-                                              userInfo:@{NSLocalizedDescriptionKey: @"Invalid parameters"}];
-        if (completion) completion(nil, paramError);
+    if (text.length == 0) {
+        if (completion) {
+            NSError *err = [NSError errorWithDomain:@"TTTranslate"
+                                               code:-1
+                                           userInfo:@{NSLocalizedDescriptionKey: @"Empty text"}];
+            completion(nil, err);
+        }
         return;
+    }
+
+    // Determine the target language from user defaults or fall back to the app's localization (or English).
+    NSString *targetLanguage = [[NSUserDefaults standardUserDefaults] stringForKey:@"TTTargetLanguage"];
+    if (targetLanguage.length == 0) {
+        targetLanguage = [[NSBundle mainBundle] preferredLocalizations].firstObject ?: @"en";
     }
 
     NSCharacterSet *allowed = [NSCharacterSet URLQueryAllowedCharacterSet];
@@ -57,53 +47,31 @@ static NSURLSession *TTTranslateSession(void) {
     NSURLSessionDataTask *task = [TTTranslateSession() dataTaskWithRequest:request
                                                          completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
-            NSString *message;
-            switch (error.code) {
-                case NSURLErrorNotConnectedToInternet:
-                    message = @"Network unavailable";
-                    break;
-                case NSURLErrorTimedOut:
-                    message = @"The request timed out";
-                    break;
-                default:
-                    message = error.localizedDescription ?: @"Unknown network error";
-                    break;
-            }
-            NSError *friendly = [NSError errorWithDomain:@"TTTranslateErrorDomain"
-                                                    code:error.code
-                                                userInfo:@{NSLocalizedDescriptionKey: message}];
-            if (completion) completion(nil, friendly);
+            if (completion) completion(nil, error);
             return;
         }
 
         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
         if (![httpResponse isKindOfClass:[NSHTTPURLResponse class]] || httpResponse.statusCode < 200 || httpResponse.statusCode >= 300) {
-            NSInteger status = httpResponse.statusCode;
-            NSString *message;
-            if (status == 429) {
-                message = @"Rate limit exceeded";
-            } else {
-                message = [NSHTTPURLResponse localizedStringForStatusCode:status];
+            if (completion) {
+                NSError *statusError = [NSError errorWithDomain:@"TTTranslate" code:httpResponse.statusCode userInfo:@{NSLocalizedDescriptionKey: @"Bad response"}];
+                completion(nil, statusError);
             }
-            NSError *statusError = [NSError errorWithDomain:@"TTTranslateErrorDomain"
-                                                      code:status
-                                                  userInfo:@{NSLocalizedDescriptionKey: message}];
-            if (completion) completion(nil, statusError);
             return;
         }
 
         if (data.length == 0) {
-            NSError *noDataError = [NSError errorWithDomain:@"TTTranslateErrorDomain"
-                                                       code:1
-                                                   userInfo:@{NSLocalizedDescriptionKey: @"No data received"}];
-            if (completion) completion(nil, noDataError);
+            if (completion) {
+                NSError *emptyError = [NSError errorWithDomain:@"TTTranslate" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"Empty response"}];
+                completion(nil, emptyError);
+            }
             return;
         }
 
         NSError *parseError = nil;
         id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&parseError];
         if (!json || parseError) {
-            if (completion) completion(nil, parseError);
+            if (completion) completion(nil, parseError ?: [NSError errorWithDomain:@"TTTranslate" code:-3 userInfo:@{NSLocalizedDescriptionKey: @"Parse error"}]);
             return;
         }
         // Response format: [ [ [ translatedText, originalText, ... ], ... ], ... ]
@@ -121,10 +89,10 @@ static NSURLSession *TTTranslateSession(void) {
             }
         }
         if (!translated) {
-            NSError *missingField = [NSError errorWithDomain:@"TTTranslateErrorDomain"
-                                                        code:2
-                                                    userInfo:@{NSLocalizedDescriptionKey: @"Missing translated text"}];
-            if (completion) completion(nil, missingField);
+            if (completion) {
+                NSError *noTransError = [NSError errorWithDomain:@"TTTranslate" code:-4 userInfo:@{NSLocalizedDescriptionKey: @"Translation not found"}];
+                completion(nil, noTransError);
+            }
             return;
         }
 
