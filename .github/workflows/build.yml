@@ -65,7 +65,6 @@ jobs:
           DEB=$(ls packages/*.deb | head -n1)
           echo "Found: $DEB"
           dpkg-deb -x "$DEB" out/extract
-          dpkg-deb -e "$DEB" out/control
           find out/extract -name "*.dylib" -print -exec cp {} out/ \;
           find out/extract -name "*.plist" -print -exec cp {} out/ \;
           cp "$DEB" out/
