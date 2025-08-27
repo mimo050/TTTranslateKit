@@ -2,6 +2,38 @@
 #import "src-objc/TTOverlayView.h"
 #import "src-objc/TTTranslate.h"
 
+static UIWindow *TTTopWindow(void) {
+    UIWindow *top = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive &&
+                [scene isKindOfClass:[UIWindowScene class]]) {
+                for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+                    if (w.isHidden == NO && w.alpha > 0.0) { top = w; break; }
+                }
+            }
+            if (top) break;
+        }
+    }
+    if (!top) top = [UIApplication sharedApplication].keyWindow ?: [UIApplication sharedApplication].windows.firstObject;
+    return top;
+}
+
+static void TTShowLoadedBanner(void) {
+    UIWindow *win = TTTopWindow();
+    if (!win) return;
+    UILabel *lab = [[UILabel alloc] initWithFrame:CGRectMake(20, 60, win.bounds.size.width-40, 32)];
+    lab.text = @"TTTranslateKit Loaded ✅";
+    lab.textAlignment = NSTextAlignmentCenter;
+    lab.backgroundColor = [UIColor colorWithWhite:0 alpha:0.75];
+    lab.textColor = UIColor.whiteColor;
+    lab.layer.cornerRadius = 8; lab.clipsToBounds = YES;
+    [win addSubview:lab];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5*NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [lab removeFromSuperview];
+    });
+}
+
 static UIWindow *TTT_FindActiveWindow(void) {
     UIWindow *win = nil;
     if (@available(iOS 13.0, *)) {
@@ -79,4 +111,13 @@ static TTOverlayView *TTGetOverlay(void) {
 }
 
 %end
+
+%ctor {
+    #ifdef TT_DEBUG
+    dispatch_async(dispatch_get_main_queue(), ^{
+        static BOOL shown = NO; if (shown) return; shown = YES;
+        TTShowLoadedBanner();
+    });
+    #endif
+}
 

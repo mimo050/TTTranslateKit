@@ -12,9 +12,14 @@ TTTranslateKit_FILES = \
     src-objc/TTOverlayView.m \
     TTTweak.xm
 
-TTTranslateKit_FRAMEWORKS = UIKit Foundation
+TTTranslateKit_FRAMEWORKS = Foundation
 TTTranslateKit_FRAMEWORKS += CFNetwork
+TTTranslateKit_FRAMEWORKS += UIKit
 TTTranslateKit_CFLAGS += -fobjc-arc
 TTTranslateKit_LDFLAGS += -ObjC
+
+ifeq ($(DEBUG),1)
+  TTTranslateKit_CFLAGS += -DTT_DEBUG=1
+endif
 
 include $(THEOS_MAKE_PATH)/tweak.mk
