@@ -2,6 +2,29 @@
 #import "src-objc/TTOverlayView.h"
 #import "src-objc/TTTranslate.h"
 
+static UIWindow *TTT_FindActiveWindow(void) {
+    UIWindow *win = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive &&
+                [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *ws = (UIWindowScene *)scene;
+                for (UIWindow *w in ws.windows) {
+                    if (w.isKeyWindow || w.windowScene) { win = w; break; }
+                }
+                if (win) break;
+            }
+        }
+    }
+    if (!win) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        win = UIApplication.sharedApplication.keyWindow;
+#pragma clang diagnostic pop
+    }
+    return win;
+}
+
 // Determine at runtime if we are running inside the target app.
 static BOOL TTIsTargetApp(void) {
     static dispatch_once_t onceToken;
@@ -21,7 +44,7 @@ static TTOverlayView *TTGetOverlay(void) {
         CGRect frame = [UIScreen mainScreen].bounds;
         overlay = [[TTOverlayView alloc] initWithFrame:frame];
         overlay.hidden = YES;
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        UIWindow *window = TTT_FindActiveWindow();
         if (window) {
             [window addSubview:overlay];
         }
@@ -38,7 +61,8 @@ static TTOverlayView *TTGetOverlay(void) {
 
     TTOverlayView *overlay = TTGetOverlay();
     [overlay showOverlay];
-    [TTTranslate translateText:text completion:^(NSString * _Nullable translatedText) {
+    TTTranslate *translator = [TTTranslate new];
+    [translator translateText:text completion:^(NSString * _Nullable translatedText, NSError * _Nullable error) {
         if (translatedText) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [overlay updateTranslatedText:translatedText];

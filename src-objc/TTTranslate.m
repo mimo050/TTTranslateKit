@@ -14,11 +14,16 @@ static NSURLSession *TTTranslateSession(void) {
     return session;
 }
 
-+ (void)translateText:(NSString * _Nullable)text
-           completion:(TTTranslationCompletion)completion
+- (void)translateText:(NSString * _Nonnull)text
+           completion:(TTTranslateCompletion)completion
 {
-    if (text == nil || text.length == 0) {
-        if (completion) completion(nil);
+    if (text.length == 0) {
+        if (completion) {
+            NSError *err = [NSError errorWithDomain:@"TTTranslate"
+                                               code:-1
+                                           userInfo:@{NSLocalizedDescriptionKey: @"Empty text"}];
+            completion(nil, err);
+        }
         return;
     }
 
@@ -42,25 +47,31 @@ static NSURLSession *TTTranslateSession(void) {
     NSURLSessionDataTask *task = [TTTranslateSession() dataTaskWithRequest:request
                                                          completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
-            if (completion) completion(nil);
+            if (completion) completion(nil, error);
             return;
         }
 
         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
         if (![httpResponse isKindOfClass:[NSHTTPURLResponse class]] || httpResponse.statusCode < 200 || httpResponse.statusCode >= 300) {
-            if (completion) completion(nil);
+            if (completion) {
+                NSError *statusError = [NSError errorWithDomain:@"TTTranslate" code:httpResponse.statusCode userInfo:@{NSLocalizedDescriptionKey: @"Bad response"}];
+                completion(nil, statusError);
+            }
             return;
         }
 
         if (data.length == 0) {
-            if (completion) completion(nil);
+            if (completion) {
+                NSError *emptyError = [NSError errorWithDomain:@"TTTranslate" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"Empty response"}];
+                completion(nil, emptyError);
+            }
             return;
         }
 
         NSError *parseError = nil;
         id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&parseError];
         if (!json || parseError) {
-            if (completion) completion(nil);
+            if (completion) completion(nil, parseError ?: [NSError errorWithDomain:@"TTTranslate" code:-3 userInfo:@{NSLocalizedDescriptionKey: @"Parse error"}]);
             return;
         }
         // Response format: [ [ [ translatedText, originalText, ... ], ... ], ... ]
@@ -78,11 +89,14 @@ static NSURLSession *TTTranslateSession(void) {
             }
         }
         if (!translated) {
-            if (completion) completion(nil);
+            if (completion) {
+                NSError *noTransError = [NSError errorWithDomain:@"TTTranslate" code:-4 userInfo:@{NSLocalizedDescriptionKey: @"Translation not found"}];
+                completion(nil, noTransError);
+            }
             return;
         }
 
-        if (completion) completion(translated);
+        if (completion) completion(translated, nil);
     }];
     [task resume];
 }

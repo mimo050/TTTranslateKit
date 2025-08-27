@@ -1,6 +1,8 @@
 // TTOverlayView.m
 #import "TTOverlayView.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface TTOverlayView ()
 
 @property (nonatomic, strong) UILabel *textLabel;
@@ -58,4 +60,6 @@
 }
 
 @end
+
+NS_ASSUME_NONNULL_END
 

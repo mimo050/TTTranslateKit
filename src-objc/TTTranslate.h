@@ -2,15 +2,14 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef void (^TTTranslationCompletion)(NSString * _Nullable translatedText);
+typedef void (^TTTranslateCompletion)(NSString * _Nullable translatedText,
+                                      NSError * _Nullable error);
 
 @interface TTTranslate : NSObject
 
-/// Translates the provided text to the user's preferred language.
-/// @param text The original text to translate.
-/// @param completion Completion block returning translated text or `nil` on failure.
-+ (void)translateText:(NSString * _Nullable)text
-           completion:(TTTranslationCompletion)completion;
+/// يترجم النص ثم يستدعي الـcompletion بالنتيجة أو الخطأ.
+- (void)translateText:(NSString * _Nonnull)text
+           completion:(TTTranslateCompletion)completion;
 
 @end
 
