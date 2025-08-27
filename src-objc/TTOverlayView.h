@@ -1,5 +1,7 @@
 #import <UIKit/UIKit.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface TTOverlayView : UIView
 
 /// Updates the overlay with the provided translated text.
@@ -12,3 +14,5 @@
 - (void)hideOverlay;
 
 @end
+
+NS_ASSUME_NONNULL_END

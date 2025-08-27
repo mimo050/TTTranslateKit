@@ -1,13 +1,14 @@
 name: build
 
 on:
+  workflow_dispatch:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-13
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,66 +22,38 @@ jobs:
           path: $HOME/theos
           key: theos-${{ runner.os }}-${{ hashFiles('.github/workflows/build.yml') }}
 
-      - name: Install Theos
+      - name: Install Theos (if missing)
         if: steps.cache-theos.outputs.cache-hit != 'true'
-        run: git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
 
-      - name: Setup environment
+      - name: Setup env & iOS SDK link
+        shell: bash
         run: |
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Prepare SDK
-        run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p "$HOME/theos/sdks"
-          ln -sf "$SDK_PATH" "$HOME/theos/sdks/$(basename "$SDK_PATH")"
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
-      - name: Install ldid
-        run: brew install ldid
-
-      - name: Install Theos submodules (safety)
-        run: |
-          cd $HOME/theos
-          git submodule update --init --recursive
-
-      - name: Locate project directory
-        id: find-project
-        run: |
-          if [[ -f Makefile ]]; then
-            echo "dir=." >> "$GITHUB_OUTPUT"
-          else
-            DIR=$(find . -name Makefile -maxdepth 2 -not -path './.git/*' -exec dirname {} \; | head -n1)
-            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Skip tests (temporarily)
-        run: echo "Skipping tests for now"
-
       - name: Build tweak
-        working-directory: ${{ steps.find-project.outputs.dir }}
         env:
           THEOS: ${{ env.THEOS }}
-        run: make clean package FINALPACKAGE=1
+        run: |
+          make clean package FINALPACKAGE=1
 
       - name: Extract dylib and plist
-        working-directory: ${{ steps.find-project.outputs.dir }}
         run: |
           mkdir -p out
           DEB=$(ls packages/*.deb | head -n1)
           dpkg-deb -x "$DEB" extract
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/TTTranslateKit.dylib
-          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/TTTranslateKit.plist
+          # عدّل المسار إذا اختلف اسم ملفك
+          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.dylib out/
+          cp extract/Library/MobileSubstrate/DynamicLibraries/TTTranslateKit.plist out/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-dylib
-          path: ${{ steps.find-project.outputs.dir }}/out/*
+          name: TTTranslateKit-artifact
+          path: out/*
 
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.find-project.outputs.dir }}/out/*
