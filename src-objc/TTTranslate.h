@@ -1,14 +1,17 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
+typedef void (^TTTranslationCompletion)(NSString * _Nullable translatedText);
+
 @interface TTTranslate : NSObject
 
-/// Translates the provided text to the given target language.
+/// Translates the provided text to the user's preferred language.
 /// @param text The original text to translate.
-/// @param targetLanguage A language code such as "en" or "ar".
-/// @param completion Completion block returning translated text or an error.
-+ (void)translateText:(NSString *)text
-           toLanguage:(NSString *)targetLanguage
-           completion:(void(^)(NSString * _Nullable translatedText,
-                             NSError * _Nullable error))completion;
+/// @param completion Completion block returning translated text or `nil` on failure.
++ (void)translateText:(NSString * _Nullable)text
+           completion:(TTTranslationCompletion)completion;
 
 @end
+
+NS_ASSUME_NONNULL_END
