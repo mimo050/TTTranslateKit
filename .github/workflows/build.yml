@@ -36,45 +36,44 @@ jobs:
           ln -sf "$SDK_PATH" "$HOME/theos/sdks/iPhoneOS.sdk"
 
       - name: Install packaging tools (no dpkg -i)
+        continue-on-error: true
         run: |
           brew update
-          brew install ldid dpkg || true
-          ldid -V
-          dpkg-deb --version
+          brew install dpkg ldid || true
+          ldid -v || true
+          dpkg-deb --version || true
 
       - name: Build tweak
         env:
           THEOS: ${{ env.THEOS }}
-        run: make clean package FINALPACKAGE=1
+        run: |
+          make clean package FINALPACKAGE=1
 
       - name: Upload dylib artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: TTTranslateKit-dylib
           path: |
             packages/**/*.dylib
-            **/*.dylib
+            .theos/obj/**/*.dylib
+            out/**/*.dylib
           if-no-files-found: warn
 
-      - name: Extract files from .deb (if exists)
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          set -e
-          mkdir -p out
-          DEB=$(ls packages/*.deb 2>/dev/null | head -n1 || true)
-          if [[ -n "$DEB" ]]; then
-            dpkg-deb -x "$DEB" out/extract
-            find out/extract -name "*.dylib" -print -exec cp {} out/ \;
-            find out/extract -name "*.plist" -print -exec cp {} out/ \;
-          fi
-
-      - name: Upload artifact bundle
+      - name: Upload plist artifact (optional)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: TTTranslateKit-artifacts
+          name: TTTranslateKit-plist
           path: |
-            packages/*.deb
-            out/*.dylib
-            out/*.plist
+            packages/**/*.plist
+            out/**/*.plist
+          if-no-files-found: warn
+
+      - name: Upload deb artifact (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTTranslateKit-deb
+          path: packages/*.deb
           if-no-files-found: warn
