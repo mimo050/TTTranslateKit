@@ -49,6 +49,12 @@ jobs:
         run: |
           make clean package FINALPACKAGE=1
 
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTTranslateKit-dylib
+          path: packages/**/*.dylib
+
       - name: Extract files for artifact
         run: |
           set -e
